@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -v)",
+      "Bash(composer --version)",
+      "Bash(mysql --version)",
+      "Bash(psql --version)",
+      "Bash(sqlite3 --version)",
+      "Read(//private/tmp/**)",
+      "Bash(python3 -c \"import pypdf\")",
+      "Bash(python3 -c \"import PyPDF2\")",
+      "Bash(python3 -c \"import fitz\")",
+      "Bash(pip3 list *)",
+      "Bash(python3 -)",
+      "Read(//Users/minthiha/laravel/**)",
+      "Bash(npm -v)"
+    ]
+  }
+}

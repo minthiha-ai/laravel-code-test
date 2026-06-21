@@ -15,12 +15,8 @@ final class Login
     ) {}
 
     /**
-     * Exchange a username and password for a Passport access token.
-     *
-     * The token is issued in-process by handing a password-grant request
-     * straight to the OAuth authorization server. This deliberately avoids a
-     * loopback HTTP call to /oauth/token, which would deadlock under the
-     * single-threaded `php artisan serve`.
+     * Issue a password-grant token in-process (no loopback call to
+     * /oauth/token, which would deadlock under `php artisan serve`).
      *
      * @param  array{username: string, password: string}  $args
      * @return array{access_token: string, token_type: string, expires_in: int, refresh_token: ?string}
@@ -39,8 +35,7 @@ final class Login
         try {
             $response = $this->server->respondToAccessTokenRequest($request, new Psr7Response());
         } catch (OAuthServerException $e) {
-            // Invalid credentials (or a misconfigured client) surface as a
-            // validation error on the username field rather than a 500.
+            // Bad credentials -> field error instead of a 500.
             throw ValidationException::withMessages([
                 'username' => ['The provided credentials are incorrect.'],
             ]);

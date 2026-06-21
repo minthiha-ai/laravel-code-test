@@ -7,13 +7,8 @@ use Laravel\Passport\Passport;
 
 class PassportClientSeeder extends Seeder
 {
-    /**
-     * Seed the password grant client used by the login mutation.
-     *
-     * `migrate:fresh` wipes oauth_clients, so the client is recreated here with
-     * the fixed credentials from config/.env. This keeps PASSPORT_PASSWORD_CLIENT_*
-     * stable across reseeds instead of changing every time.
-     */
+    // Recreate the password grant client with the fixed .env credentials so
+    // they survive migrate:fresh (which wipes oauth_clients).
     public function run(): void
     {
         $id = config('passport.password_client_id');

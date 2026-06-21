@@ -31,10 +31,7 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Resolve the user for Passport's password grant by their username
-     * instead of the default email field.
-     */
+    // Passport password grant looks up by username, not the default email.
     public function findForPassport(string $username): ?self
     {
         return $this->where('username', $username)->first();

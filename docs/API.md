@@ -135,7 +135,7 @@ Returns `AuthPayload`: `access_token`, `token_type`, `expires_in`,
 
 ```graphql
 mutation {
-  login(username: "admin", password: "password") {
+  login(username: "admin", password: "admin") {
     access_token
     token_type
     expires_in

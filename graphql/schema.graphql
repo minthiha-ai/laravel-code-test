@@ -4,99 +4,48 @@ scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Date
 "Can be used as an argument to upload files using https://github.com/jaydenseric/graphql-multipart-request-spec"
 scalar Upload @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Upload")
 
-"Account of a person who uses this application."
 type User {
-    "Unique primary key."
     id: ID!
-
-    "Non-unique display name."
     name: String!
-
-    "Unique login username."
     username: String!
-
-    "Unique email address."
     email: String!
-
-    "When the account was created."
     created_at: DateTime!
-
-    "When the account was last updated."
     updated_at: DateTime!
 }
 
-"Result of queueing a bulk-upsert import."
 type ImportResult {
-    "Human-readable status message."
     message: String!
-
-    "Whether the import was accepted and queued for background processing."
     queued: Boolean!
-
-    "Tracking id to poll `importStatus` for live progress."
     import_id: String!
 }
 
-"Live progress of a queued import, polled by the client."
 type ImportStatus {
     "queued | processing | completed | failed | unknown"
     status: String!
-
-    "Rows processed so far."
     processed: Int!
-
-    "Total data rows expected (0 if it could not be determined)."
     total: Int!
 }
 
-"OAuth access token issued by Passport's password grant."
 type AuthPayload {
-    "The bearer access token to send in the Authorization header."
     access_token: String!
-
-    "Always `Bearer`."
     token_type: String!
-
-    "Seconds until the access token expires."
     expires_in: Int!
-
-    "Token used to obtain a fresh access token."
     refresh_token: String
 }
 
-"A company employee."
 type Employee {
-    "Unique primary key."
     id: ID!
-
-    "Given name."
     first_name: String!
-
-    "Family name."
     last_name: String!
-
-    "Unique email address."
     email: String!
-
-    "Contact phone number."
     phone: String!
-
-    "Postal address."
     address: String!
-
-    "Annual salary."
     salary: Float!
-
-    "When the employee was created."
     created_at: DateTime!
-
-    "When the employee was last updated."
     updated_at: DateTime!
 }
 
-"Fields to update on an existing employee. Every field except `id` is optional."
 input UpdateEmployeeInput @validator {
-    "Primary key of the employee to update."
     id: ID!
     first_name: String
     last_name: String
@@ -107,35 +56,27 @@ input UpdateEmployeeInput @validator {
 }
 
 type Query {
-    "The currently authenticated user."
     me: User @auth(guards: ["api"])
 
-    "Paginated list of employees. Requires authentication."
     employees: [Employee!]! @paginate(defaultCount: 25, maxCount: 100, scopes: ["ordered"]) @guard
 
-    "Fetch a single employee by id. Requires authentication."
     employee(id: ID! @eq): Employee @find @guard
 
-    "Live progress of a queued import by its tracking id. Requires authentication."
     importStatus(id: String! @rules(apply: ["required", "string"])): ImportStatus!
         @field(resolver: "App\\GraphQL\\Queries\\ImportStatus")
         @guard
 }
 
 type Mutation {
-    "Exchange a username and password for a Passport access token."
     login(
         username: String! @rules(apply: ["required", "string"])
         password: String! @rules(apply: ["required", "string"])
     ): AuthPayload! @field(resolver: "App\\GraphQL\\Mutations\\Login")
 
-    "Update an existing employee by id. Requires authentication."
     updateEmployee(input: UpdateEmployeeInput! @spread): Employee @update @guard
 
-    "Delete an employee by id. Returns the deleted employee. Requires authentication."
     deleteEmployee(id: ID! @whereKey): Employee @delete @guard
 
-    "Bulk-update employees from an uploaded Excel/CSV file. Matched by email. Requires authentication."
     importEmployees(
         file: Upload! @rules(apply: ["required", "file", "max:51200"])
     ): ImportResult! @field(resolver: "App\\GraphQL\\Mutations\\ImportEmployees") @guard

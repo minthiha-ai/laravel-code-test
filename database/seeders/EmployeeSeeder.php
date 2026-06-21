@@ -8,30 +8,16 @@ use Illuminate\Support\Str;
 
 class EmployeeSeeder extends Seeder
 {
-    /**
-     * Number of employees to generate.
-     */
     private const TOTAL = 10000;
 
-    /**
-     * Rows inserted per query. Keeps memory flat and avoids 10k single inserts.
-     */
     private const CHUNK = 1000;
 
-    /**
-     * Seed 10,000 employees using batched raw inserts.
-     *
-     * Faker generates the data, but rows are pushed with
-     * DB::table()->insert() in chunks rather than per-row Eloquent saves.
-     * Because raw inserts bypass Eloquent, created_at/updated_at must be set
-     * explicitly or the non-nullable timestamp columns would fail.
-     */
+    // Batched raw inserts (not per-row Eloquent saves) to keep memory flat.
+    // Raw inserts bypass Eloquent, so timestamps are set by hand below.
     public function run(): void
     {
         $faker = \Faker\Factory::create();
-        // Fixed seed => reproducible data across reseeds, so the bundled sample
-        // import file (storage/samples/employees_sample.xlsx) always references
-        // emails that actually exist.
+        // Fixed seed so reseeds reproduce the same emails the sample file targets.
         $faker->seed(20260620);
         $now = now();
         $rows = [];
@@ -43,8 +29,7 @@ class EmployeeSeeder extends Seeder
             $rows[] = [
                 'first_name' => $firstName,
                 'last_name' => $lastName,
-                // Append the row index to guarantee uniqueness across 10k rows
-                // without exhausting Faker's unique() pool.
+                // Row index keeps emails unique without exhausting Faker's pool.
                 'email' => Str::lower("{$firstName}.{$lastName}.{$i}@example.com"),
                 'phone' => $faker->numerify('+1-###-###-####'),
                 'address' => str_replace("\n", ', ', $faker->address()),

@@ -20,8 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Passport disables the password grant by default; the login mutation
-        // depends on it, so enable it explicitly.
+        // Off by default; the login mutation needs it.
         Passport::enablePasswordGrant();
     }
 }

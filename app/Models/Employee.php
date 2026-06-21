@@ -27,11 +27,7 @@ class Employee extends Model
     }
 
     /**
-     * Deterministic ordering for the paginated list.
-     *
-     * Without an explicit ORDER BY, PostgreSQL returns rows in heap order,
-     * which changes when a row is updated — causing edited rows to jump between
-     * pages. Ordering by id keeps pagination stable.
+     * Stable ordering for pagination (Postgres heap order shifts on update).
      *
      * @param  Builder<Employee>  $query
      * @return Builder<Employee>

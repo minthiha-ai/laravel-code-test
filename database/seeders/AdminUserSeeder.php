@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminUserSeeder extends Seeder
 {
-    /**
-     * Seed the default admin account used to log in and obtain a token.
-     */
     public function run(): void
     {
         User::updateOrCreate(
@@ -18,7 +15,7 @@ class AdminUserSeeder extends Seeder
             [
                 'name' => 'Administrator',
                 'email' => 'admin@example.com',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('admin'),
             ],
         );
     }

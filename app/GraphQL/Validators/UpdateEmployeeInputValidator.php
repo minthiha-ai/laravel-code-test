@@ -8,10 +8,7 @@ use Nuwave\Lighthouse\Validation\Validator;
 final class UpdateEmployeeInputValidator extends Validator
 {
     /**
-     * Validation rules for updating an employee.
-     *
-     * Every field except `id` is optional (`sometimes`) so callers can patch a
-     * single field. The unique-email rule ignores the employee being updated.
+     * Partial update: every field but `id` is optional; unique email ignores self.
      *
      * @return array<string, array<int, mixed>>
      */

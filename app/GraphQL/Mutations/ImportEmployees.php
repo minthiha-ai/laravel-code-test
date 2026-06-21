@@ -13,29 +13,16 @@ use Throwable;
 final class ImportEmployees
 {
     /**
-     * Accept an uploaded spreadsheet and queue a chunked bulk-upsert import.
-     *
-     * The file is stored to disk first so the queued chunk jobs can read it.
-     * The mutation returns immediately rather than processing 10k rows inline,
-     * avoiding HTTP timeouts and high memory use. It also hands back an
-     * `import_id` the client can poll (via the `importStatus` query) to render a
-     * live progress bar.
-     *
      * @param  array{file: UploadedFile}  $args
      * @return array{message: string, queued: bool, import_id: string}
      */
     public function __invoke(null $_, array $args): array
     {
-        $file = $args['file'];
-
-        // Persist the upload so the queued workers can read it back.
-        $path = $file->store('imports');
+        $path = $args['file']->store('imports');
 
         $importId = (string) Str::uuid();
         ImportProgress::start($importId, $this->countRows($path));
 
-        // ShouldQueue + WithChunkReading => each 1,000-row chunk is its own job.
-        // The import id flows into the importer so each chunk reports progress.
         (new EmployeesImport($importId))->queue($path);
 
         return [
@@ -46,9 +33,8 @@ final class ImportEmployees
     }
 
     /**
-     * Cheaply count data rows (excluding the heading) without loading the whole
-     * sheet into memory. `listWorksheetInfo` reads only sheet dimensions. On any
-     * failure we return 0, and the frontend falls back to an indeterminate bar.
+     * Count data rows without loading the sheet (reads dimensions only).
+     * Returns 0 on failure; the frontend then shows an indeterminate bar.
      */
     private function countRows(string $path): int
     {
@@ -57,9 +43,8 @@ final class ImportEmployees
             $reader = IOFactory::createReaderForFile($absolute);
             $reader->setReadDataOnly(true);
             $info = $reader->listWorksheetInfo($absolute);
-            $totalRows = (int) ($info[0]['totalRows'] ?? 0);
 
-            return max(0, $totalRows - 1); // minus the heading row
+            return max(0, (int) ($info[0]['totalRows'] ?? 0) - 1);
         } catch (Throwable) {
             return 0;
         }

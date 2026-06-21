@@ -113,12 +113,12 @@ php artisan queue:work       # in a second terminal — required for Excel impor
 
 ## Quick start
 
-GraphQL endpoint: `POST /graphql`. Export endpoint: `GET /api/employees/export`.
+GraphQL endpoint: `POST /api/graphql`. Export endpoint: `GET /api/employees/export`.
 
 ### Get a token
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/graphql \
+curl -s -X POST http://127.0.0.1:8000/api/graphql \
   -H "Content-Type: application/json" \
   -d '{"query":"mutation { login(username: \"admin\", password: \"password\") { access_token token_type expires_in } }"}'
 ```
@@ -132,7 +132,7 @@ TOKEN="paste-access-token-here"
 ### List employees (paginated)
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/graphql \
+curl -s -X POST http://127.0.0.1:8000/api/graphql \
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"query":"{ employees(first: 25, page: 1) { paginatorInfo { total currentPage lastPage } data { id first_name last_name email salary } } }"}'
 ```
@@ -140,7 +140,7 @@ curl -s -X POST http://127.0.0.1:8000/graphql \
 ### Update an employee
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/graphql \
+curl -s -X POST http://127.0.0.1:8000/api/graphql \
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"query":"mutation { updateEmployee(input: { id: 1, salary: 95000, phone: \"+1-555-0100\" }) { id salary phone } }"}'
 ```
@@ -148,7 +148,7 @@ curl -s -X POST http://127.0.0.1:8000/graphql \
 ### Delete an employee
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/graphql \
+curl -s -X POST http://127.0.0.1:8000/api/graphql \
   -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"query":"mutation { deleteEmployee(id: 1) { id first_name } }"}'
 ```
@@ -159,7 +159,7 @@ Uses the [GraphQL multipart request spec](https://github.com/jaydenseric/graphql
 A ready-made sample file is at `storage/samples/employees_sample.xlsx`.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/graphql \
+curl -s -X POST http://127.0.0.1:8000/api/graphql \
   -H "Authorization: Bearer $TOKEN" \
   -F operations='{"query":"mutation ($file: Upload!) { importEmployees(file: $file) { message queued import_id } }","variables":{"file":null}}' \
   -F map='{"0":["variables.file"]}' \

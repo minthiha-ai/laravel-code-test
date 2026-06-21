@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Employee GraphQL API",
-    "description": "Complete API testing collection for the Laravel Employee API.\n\nEndpoints:\n- GraphQL: POST {{baseUrl}}/graphql (login, me, employees, employee, updateEmployee, deleteEmployee, importEmployees, importStatus)\n- REST: GET {{baseUrl}}/api/employees/export (Passport-guarded binary download)\n\nQuick start:\n1. Run **Auth > Login** first — it stores the access token in the `token` collection variable, and every other request sends it as a Bearer token automatically.\n2. Run the other requests in any order.\n\nNotes:\n- Default credentials: admin / password.\n- The import is asynchronous: it returns an `import_id` (stored in the `importId` variable). Poll **Import & Export > Import Status** to watch progress. The backend `php artisan queue:work` must be running for the import to be applied.\n- For **Export**, use the \"Send and Download\" button (it returns a binary .xlsx).",
+    "description": "Complete API testing collection for the Laravel Employee API.\n\nEndpoints:\n- GraphQL: POST {{baseUrl}}/api/graphql (login, me, employees, employee, updateEmployee, deleteEmployee, importEmployees, importStatus)\n- REST: GET {{baseUrl}}/api/employees/export (Passport-guarded binary download)\n\nQuick start:\n1. Run **Auth > Login** first — it stores the access token in the `token` collection variable, and every other request sends it as a Bearer token automatically.\n2. Run the other requests in any order.\n\nNotes:\n- Default credentials: admin / password.\n- The import is asynchronous: it returns an `import_id` (stored in the `importId` variable). Poll **Import & Export > Import Status** to watch progress. The backend `php artisan queue:work` must be running for the import to be applied.\n- For **Export**, use the \"Send and Download\" button (it returns a binary .xlsx).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -75,9 +75,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Exchange username/password for a Passport access token. The test script stores `access_token` into the `token` collection variable used by every other request."
           }
@@ -95,9 +100,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Returns the authenticated user. Returns null when the token is missing/invalid."
           }
@@ -120,9 +130,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Paginated employee list. `first` max is 100. Change `page` to walk pages."
           }
@@ -140,9 +155,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Fetch a single employee by id (uses the `employeeId` collection variable)."
           }
@@ -160,9 +180,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Partial update — send only the fields you want to change (besides `id`). A duplicate email returns a validation error under `extensions.validation` keyed `input.email`."
           }
@@ -180,9 +205,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Delete an employee by id and return the deleted record."
           }
@@ -238,9 +268,14 @@
               ]
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Multipart upload following the graphql-multipart-request-spec.\n\nBefore sending, click the `0` form field and choose a spreadsheet file. Do NOT set a Content-Type header — Postman adds the multipart boundary automatically.\n\nThe import runs asynchronously on the queue worker and returns an `import_id` (saved to the `importId` variable by the test script)."
           }
@@ -258,9 +293,14 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/graphql",
-              "host": ["{{baseUrl}}"],
-              "path": ["graphql"]
+              "raw": "{{baseUrl}}/api/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "graphql"
+              ]
             },
             "description": "Poll live import progress by `import_id`. `status` goes queued -> processing -> completed; `processed`/`total` drive a progress bar."
           }
@@ -272,8 +312,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/employees/export",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "employees", "export"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "employees",
+                "export"
+              ]
             },
             "description": "Passport-guarded REST endpoint that streams all employees as an .xlsx. Use the \"Send and Download\" button to save the file. Without a valid Bearer token it returns HTTP 401."
           }

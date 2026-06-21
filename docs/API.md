@@ -3,7 +3,7 @@
 All GraphQL operations are served from a single endpoint:
 
 ```
-POST /graphql
+POST /api/graphql
 ```
 
 The Excel export is a REST download:
@@ -299,7 +299,7 @@ Uploads use the
 [GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec):
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/graphql \
+curl -s -X POST http://127.0.0.1:8000/api/graphql \
   -H "Authorization: Bearer $TOKEN" \
   -F operations='{"query":"mutation ($file: Upload!) { importEmployees(file: $file) { message queued import_id } }","variables":{"file":null}}' \
   -F map='{"0":["variables.file"]}' \

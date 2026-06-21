@@ -94,7 +94,7 @@ This:
 - creates all tables (users, employees, Passport, jobs),
 - seeds the **password grant client** from your `.env` (so it survives
   `migrate:fresh`),
-- seeds an **admin** user (`admin` / `admin`),
+- seeds an **admin** user (`admin` / `password`),
 - seeds **10,000 employees** (deterministic — fixed Faker seed — so the bundled
   sample import file always matches).
 
@@ -120,7 +120,7 @@ GraphQL endpoint: `POST /graphql`. Export endpoint: `GET /api/employees/export`.
 ```bash
 curl -s -X POST http://127.0.0.1:8000/graphql \
   -H "Content-Type: application/json" \
-  -d '{"query":"mutation { login(username: \"admin\", password: \"admin\") { access_token token_type expires_in } }"}'
+  -d '{"query":"mutation { login(username: \"admin\", password: \"password\") { access_token token_type expires_in } }"}'
 ```
 
 Use the `access_token` as a Bearer token on every other operation:
@@ -222,4 +222,4 @@ request/response: **[docs/API.md](docs/API.md)**.
 | Field | Value |
 |---|---|
 | Username | `admin` |
-| Password | `admin` |
+| Password | `password` |

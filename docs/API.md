@@ -24,6 +24,10 @@ Authorization: Bearer <access_token>
 Obtain a token with the [`login`](#mutation-login) mutation. Unauthenticated
 calls to guarded operations return an `Unauthenticated.` error.
 
+> A ready-to-run Postman collection covering every operation below is in
+> [`postman/Employee-API.postman_collection.json`](../postman/Employee-API.postman_collection.json).
+> Import it, run **Login** (it stores the token automatically), then run the rest.
+
 ## Types
 
 ### Employee
@@ -50,6 +54,35 @@ calls to guarded operations return an `Unauthenticated.` error.
 | `email` | `String!` |
 | `created_at` | `DateTime!` |
 | `updated_at` | `DateTime!` |
+
+### AuthPayload
+
+| Field | Type | Notes |
+|---|---|---|
+| `access_token` | `String!` | Bearer token |
+| `token_type` | `String!` | Always `Bearer` |
+| `expires_in` | `Int!` | Seconds until expiry |
+| `refresh_token` | `String` | May be null |
+
+### ImportResult
+
+Returned by [`importEmployees`](#importemployees).
+
+| Field | Type | Notes |
+|---|---|---|
+| `message` | `String!` | Human-readable status |
+| `queued` | `Boolean!` | Whether the import was accepted onto the queue |
+| `import_id` | `String!` | Poll [`importStatus`](#importstatus) with this id |
+
+### ImportStatus
+
+Returned by [`importStatus`](#importstatus).
+
+| Field | Type | Notes |
+|---|---|---|
+| `status` | `String!` | `queued` \| `processing` \| `completed` \| `failed` \| `unknown` |
+| `processed` | `Int!` | Rows processed so far |
+| `total` | `Int!` | Total data rows expected (0 if it couldn't be determined) |
 
 ---
 
@@ -114,6 +147,27 @@ query { employee(id: 1) { id first_name last_name email phone address salary } }
 
 ```json
 { "data": { "employee": { "id": "1", "first_name": "Mathew", "last_name": "Quigley", "email": "mathew.quigley.1@example.com", "phone": "+1-787-703-2019", "address": "46491 Bennie Court, Port Boyd, WY 34036-7402", "salary": 168841 } } }
+```
+
+---
+
+### `importStatus`
+
+Live progress of a queued import, looked up by the `import_id` returned from
+[`importEmployees`](#importemployees). **Auth required.** Poll it until `status`
+is `completed` (or `failed`). An unknown id returns `status: "unknown"` with
+zeroes rather than an error.
+
+| Argument | Type | Required |
+|---|---|---|
+| `id` | `String!` | yes |
+
+```graphql
+query { importStatus(id: "9f1c0e2a-...") { status processed total } }
+```
+
+```json
+{ "data": { "importStatus": { "status": "processing", "processed": 4000, "total": 10000 } } }
 ```
 
 ---
@@ -209,22 +263,29 @@ mutation { deleteEmployee(id: 1) { id first_name email } }
 
 ---
 
+<a id="importemployees"></a>
 ### `importEmployees`
 
-Bulk-update employees from an uploaded Excel/CSV file. **Auth required.**
-Returns immediately; the file is processed in the background by the queue
-worker (`php artisan queue:work`).
+Bulk-import employees from an uploaded Excel/CSV file. **Auth required.**
+Returns immediately with an `import_id`; the file is processed in the background
+by the queue worker (`php artisan queue:work`). Track progress with
+[`importStatus`](#importstatus).
 
 | Argument | Type | Validation |
 |---|---|---|
 | `file` | `Upload!` | required, file, max 50 MB |
 
-**Matching:** each row is matched to an existing employee **by `email`**.
-- Matched rows are **updated** (`first_name`, `last_name`, `phone`, `address`,
-  `salary`).
-- Rows whose email does **not** match any employee are **skipped** (never
-  inserted).
+Returns [`ImportResult`](#importresult) (`message`, `queued`, `import_id`).
+
+**Matching:** rows are keyed **by `email`** and applied as a single chunked
+upsert.
+- Existing emails are **updated** (`first_name`, `last_name`, `phone`,
+  `address`, `salary`).
+- New emails are **inserted** as new employees.
 - Rows failing per-row validation are **skipped** and logged.
+
+The file is read in 1,000-row chunks, each as its own queued job, so a 10k-row
+file never loads fully into memory.
 
 **Expected columns** (header row, exact names):
 
@@ -232,8 +293,7 @@ worker (`php artisan queue:work`).
 first_name | last_name | email | phone | address | salary
 ```
 
-A ready-made example is at `storage/samples/employees_sample.xlsx`
-(25 valid updates + 1 unmatched row + 1 invalid row).
+A ready-made example is at `storage/samples/employees_sample.xlsx`.
 
 Uploads use the
 [GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec):
@@ -241,17 +301,17 @@ Uploads use the
 ```bash
 curl -s -X POST http://127.0.0.1:8000/graphql \
   -H "Authorization: Bearer $TOKEN" \
-  -F operations='{"query":"mutation ($file: Upload!) { importEmployees(file: $file) { message queued } }","variables":{"file":null}}' \
+  -F operations='{"query":"mutation ($file: Upload!) { importEmployees(file: $file) { message queued import_id } }","variables":{"file":null}}' \
   -F map='{"0":["variables.file"]}' \
   -F 0=@storage/samples/employees_sample.xlsx
 ```
 
 ```json
-{ "data": { "importEmployees": { "message": "Import accepted. Employees are being bulk-updated in the background.", "queued": true } } }
+{ "data": { "importEmployees": { "message": "Import accepted. Employees are being imported in the background.", "queued": true, "import_id": "9f1c0e2a-7b1e-4f8c-9a2d-1c3b5e7d9f01" } } }
 ```
 
-Progress is logged to `storage/logs/laravel.log`, e.g.
-`EmployeesImport chunk processed {"updated":25,"skipped":1}`.
+Per-chunk progress is also logged to `storage/logs/laravel.log`, e.g.
+`EmployeesImport chunk processed {"upserted":1000,"skipped":0}`.
 
 ---
 

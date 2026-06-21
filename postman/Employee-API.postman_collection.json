@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "Employee GraphQL API",
+    "description": "Complete API testing collection for the Laravel Employee API.\n\nEndpoints:\n- GraphQL: POST {{baseUrl}}/graphql (login, me, employees, employee, updateEmployee, deleteEmployee, importEmployees, importStatus)\n- REST: GET {{baseUrl}}/api/employees/export (Passport-guarded binary download)\n\nQuick start:\n1. Run **Auth > Login** first — it stores the access token in the `token` collection variable, and every other request sends it as a Bearer token automatically.\n2. Run the other requests in any order.\n\nNotes:\n- Default credentials: admin / password.\n- The import is asynchronous: it returns an `import_id` (stored in the `importId` variable). Poll **Import & Export > Import Status** to watch progress. The backend `php artisan queue:work` must be running for the import to be applied.\n- For **Export**, use the \"Send and Download\" button (it returns a binary .xlsx).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "employeeId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "importId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json && json.data && json.data.login && json.data.login.access_token;",
+                  "pm.test('access_token returned', function () {",
+                  "  pm.expect(token, 'no access_token in response').to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (token) {",
+                  "  pm.collectionVariables.set('token', token);",
+                  "  console.log('Saved token to collection variable.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Login($username: String!, $password: String!) {\n  login(username: $username, password: $password) {\n    access_token\n    token_type\n    expires_in\n    refresh_token\n  }\n}",
+                "variables": "{\n  \"username\": \"admin\",\n  \"password\": \"password\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Exchange username/password for a Passport access token. The test script stores `access_token` into the `token` collection variable used by every other request."
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Me {\n  me {\n    id\n    name\n    username\n    email\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Returns the authenticated user. Returns null when the token is missing/invalid."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "item": [
+        {
+          "name": "List Employees (paginated)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Employees($first: Int!, $page: Int) {\n  employees(first: $first, page: $page) {\n    data {\n      id\n      first_name\n      last_name\n      email\n      phone\n      address\n      salary\n      created_at\n      updated_at\n    }\n    paginatorInfo {\n      count\n      currentPage\n      lastPage\n      perPage\n      total\n      hasMorePages\n    }\n  }\n}",
+                "variables": "{\n  \"first\": 25,\n  \"page\": 1\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Paginated employee list. `first` max is 100. Change `page` to walk pages."
+          }
+        },
+        {
+          "name": "Get Employee by ID",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Employee($id: ID!) {\n  employee(id: $id) {\n    id\n    first_name\n    last_name\n    email\n    phone\n    address\n    salary\n    created_at\n    updated_at\n  }\n}",
+                "variables": "{\n  \"id\": \"{{employeeId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Fetch a single employee by id (uses the `employeeId` collection variable)."
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation UpdateEmployee($input: UpdateEmployeeInput!) {\n  updateEmployee(input: $input) {\n    id\n    first_name\n    last_name\n    email\n    phone\n    address\n    salary\n    updated_at\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"id\": \"{{employeeId}}\",\n    \"first_name\": \"Updated\",\n    \"salary\": 99999.99\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Partial update — send only the fields you want to change (besides `id`). A duplicate email returns a validation error under `extensions.validation` keyed `input.email`."
+          }
+        },
+        {
+          "name": "Delete Employee",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation DeleteEmployee($id: ID!) {\n  deleteEmployee(id: $id) {\n    id\n    first_name\n    last_name\n  }\n}",
+                "variables": "{\n  \"id\": \"{{employeeId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Delete an employee by id and return the deleted record."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Import & Export",
+      "item": [
+        {
+          "name": "Import Employees (upload)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const id = json && json.data && json.data.importEmployees && json.data.importEmployees.import_id;",
+                  "pm.test('import_id returned', function () {",
+                  "  pm.expect(id, 'no import_id in response').to.be.a('string').and.not.empty;",
+                  "});",
+                  "if (id) {",
+                  "  pm.collectionVariables.set('importId', id);",
+                  "  console.log('Saved importId — run \"Import Status\" to track progress.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "operations",
+                  "value": "{\"query\":\"mutation ($file: Upload!) { importEmployees(file: $file) { message queued import_id } }\",\"variables\":{\"file\":null}}",
+                  "type": "text"
+                },
+                {
+                  "key": "map",
+                  "value": "{\"0\":[\"variables.file\"]}",
+                  "type": "text"
+                },
+                {
+                  "key": "0",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select the .xlsx/.xls/.csv to upload (e.g. storage/samples/employees_sample.xlsx)."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Multipart upload following the graphql-multipart-request-spec.\n\nBefore sending, click the `0` form field and choose a spreadsheet file. Do NOT set a Content-Type header — Postman adds the multipart boundary automatically.\n\nThe import runs asynchronously on the queue worker and returns an `import_id` (saved to the `importId` variable by the test script)."
+          }
+        },
+        {
+          "name": "Import Status",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query ImportStatus($id: String!) {\n  importStatus(id: $id) {\n    status\n    processed\n    total\n  }\n}",
+                "variables": "{\n  \"id\": \"{{importId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql"]
+            },
+            "description": "Poll live import progress by `import_id`. `status` goes queued -> processing -> completed; `processed`/`total` drive a progress bar."
+          }
+        },
+        {
+          "name": "Export Employees (download)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/export",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", "export"]
+            },
+            "description": "Passport-guarded REST endpoint that streams all employees as an .xlsx. Use the \"Send and Download\" button to save the file. Without a valid Bearer token it returns HTTP 401."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,7 @@ designed around handling large datasets without exhausting memory or timing out.
 | 3 | List employees | GraphQL `employees` query with **pagination** |
 | 4 | Delete an employee | GraphQL `deleteEmployee` mutation |
 | 5 | Update an employee | GraphQL `updateEmployee` mutation (validated) |
-| 6 | Bulk-update from Excel (~10k rows) | `importEmployees` mutation → **queued, chunked** import |
+| 6 | Bulk import from Excel (~10k rows) | `importEmployees` mutation → **queued, chunked** upsert (+ `importStatus` progress) |
 | 7 | Export all employees (~10k) to Excel | Passport-guarded REST route using **`FromQuery`** streaming |
 
 ## Stack
@@ -153,7 +153,7 @@ curl -s -X POST http://127.0.0.1:8000/graphql \
   -d '{"query":"mutation { deleteEmployee(id: 1) { id first_name } }"}'
 ```
 
-### Import (bulk-update) from Excel
+### Import from Excel
 
 Uses the [GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
 A ready-made sample file is at `storage/samples/employees_sample.xlsx`.
@@ -161,15 +161,16 @@ A ready-made sample file is at `storage/samples/employees_sample.xlsx`.
 ```bash
 curl -s -X POST http://127.0.0.1:8000/graphql \
   -H "Authorization: Bearer $TOKEN" \
-  -F operations='{"query":"mutation ($file: Upload!) { importEmployees(file: $file) { message queued } }","variables":{"file":null}}' \
+  -F operations='{"query":"mutation ($file: Upload!) { importEmployees(file: $file) { message queued import_id } }","variables":{"file":null}}' \
   -F map='{"0":["variables.file"]}' \
   -F 0=@storage/samples/employees_sample.xlsx
 ```
 
 Make sure `php artisan queue:work` is running — the import is processed in the
-background, 1,000 rows per queued job. Rows are matched to employees **by
-email**; unmatched emails are skipped (never inserted) and invalid rows are
-logged and skipped.
+background, 1,000 rows per queued job. Rows are keyed **by email**: existing
+emails are updated and new emails are inserted; invalid rows are logged and
+skipped. The mutation returns an `import_id` you can poll with the
+`importStatus` query to track progress.
 
 ### Export all employees to Excel
 
@@ -190,8 +191,8 @@ order as the import format.
   individual model saves. ~0.5–1s for 10k rows.
 - **Import**: `EmployeesImport` uses `WithChunkReading` (1,000) + `ShouldQueue`,
   so a 10k-row file fans out into 10 queued jobs and is never fully loaded into
-  memory. Each chunk does **one** `whereIn('email')` select and **one** batched
-  `upsert` (restricted to already-matching emails — update-only).
+  memory. Each chunk applies **one** batched `upsert` keyed on email (update
+  existing, insert new).
 - **Export**: `EmployeesExport` implements `FromQuery`, so maatwebsite iterates
   the query in chunks instead of loading all 10k models into a collection.
 - **List**: the `employees` query is paginated (`@paginate`, default 25, max
@@ -207,12 +208,13 @@ order as the import format.
 | `app/GraphQL/Mutations/Login.php` | Issues a Passport token in-process |
 | `app/GraphQL/Mutations/ImportEmployees.php` | Stores upload + queues import |
 | `app/GraphQL/Validators/UpdateEmployeeInputValidator.php` | Update validation |
-| `app/Imports/EmployeesImport.php` | Queued chunked bulk-update by email |
+| `app/Imports/EmployeesImport.php` | Queued chunked upsert by email |
 | `app/Exports/EmployeesExport.php` | Streamed `FromQuery` export |
 | `app/Http/Controllers/ExportEmployeesController.php` | Export download route |
 | `database/seeders/` | Passport client, admin, 10k employees |
 | `storage/samples/employees_sample.xlsx` | Sample import file |
 | `docs/API.md` | Full per-operation API reference |
+| `postman/Employee-API.postman_collection.json` | Postman collection for the whole API |
 
 Full API reference with every argument, validation rule, and example
 request/response: **[docs/API.md](docs/API.md)**.

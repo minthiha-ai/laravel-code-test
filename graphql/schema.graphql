@@ -25,13 +25,28 @@ type User {
     updated_at: DateTime!
 }
 
-"Result of queueing a bulk-update import."
+"Result of queueing a bulk-upsert import."
 type ImportResult {
     "Human-readable status message."
     message: String!
 
     "Whether the import was accepted and queued for background processing."
     queued: Boolean!
+
+    "Tracking id to poll `importStatus` for live progress."
+    import_id: String!
+}
+
+"Live progress of a queued import, polled by the client."
+type ImportStatus {
+    "queued | processing | completed | failed | unknown"
+    status: String!
+
+    "Rows processed so far."
+    processed: Int!
+
+    "Total data rows expected (0 if it could not be determined)."
+    total: Int!
 }
 
 "OAuth access token issued by Passport's password grant."
@@ -100,6 +115,11 @@ type Query {
 
     "Fetch a single employee by id. Requires authentication."
     employee(id: ID! @eq): Employee @find @guard
+
+    "Live progress of a queued import by its tracking id. Requires authentication."
+    importStatus(id: String! @rules(apply: ["required", "string"])): ImportStatus!
+        @field(resolver: "App\\GraphQL\\Queries\\ImportStatus")
+        @guard
 }
 
 type Mutation {

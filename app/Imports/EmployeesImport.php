@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Employee;
+use App\Support\ImportProgress;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -12,8 +13,11 @@ use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
+use Maatwebsite\Excel\Events\AfterImport;
+use Maatwebsite\Excel\Events\BeforeImport;
 use Maatwebsite\Excel\Validators\Failure;
 
 /**
@@ -27,8 +31,8 @@ use Maatwebsite\Excel\Validators\Failure;
  *   query per row.
  *
  * Matching is by email (the unique business key). Rows whose email matches an
- * existing employee are updated; rows with no match are skipped and counted —
- * this importer never creates new employees.
+ * existing employee are updated; rows with a new email are created. The single
+ * chunked upsert does both in one statement.
  *
  * Note: WithBatchInserts is intentionally NOT used. It only applies to the
  * ToModel concern; with ToCollection it would be a silent no-op. The batching
@@ -39,6 +43,7 @@ class EmployeesImport implements
     WithHeadingRow,
     WithChunkReading,
     WithValidation,
+    WithEvents,
     SkipsOnFailure,
     SkipsOnError,
     ShouldQueue
@@ -47,41 +52,35 @@ class EmployeesImport implements
     use SkipsErrors;
 
     /**
-     * Columns updated on a matched employee.
+     * Columns refreshed on an existing employee when its email already matches.
+     * (On insert, every column including email is written.)
      */
     private const UPDATABLE = ['first_name', 'last_name', 'phone', 'address', 'salary'];
+
+    /**
+     * @param  string|null  $importId  Tracking id used to report live progress
+     *                                 (rows processed / status) to the frontend.
+     */
+    public function __construct(private readonly ?string $importId = null) {}
 
     /**
      * @param  Collection<int, Collection<string, mixed>>  $rows
      */
     public function collection(Collection $rows): void
     {
-        $emails = $rows
-            ->pluck('email')
-            ->filter()
-            ->map(fn ($email): string => mb_strtolower(trim((string) $email)))
-            ->unique();
-
-        // Single query: which of these emails already exist?
-        $existing = Employee::query()
-            ->whereIn('email', $emails)
-            ->pluck('email')
-            ->map(fn (string $email): string => mb_strtolower($email))
-            ->flip();
-
-        $updates = [];
+        $records = [];
         $skipped = 0;
 
         foreach ($rows as $row) {
             $email = mb_strtolower(trim((string) ($row['email'] ?? '')));
 
-            if ($email === '' || ! $existing->has($email)) {
+            if ($email === '') {
                 $skipped++;
 
                 continue;
             }
 
-            $updates[] = [
+            $records[] = [
                 'email' => $email,
                 'first_name' => $row['first_name'],
                 'last_name' => $row['last_name'],
@@ -91,17 +90,43 @@ class EmployeesImport implements
             ];
         }
 
-        if ($updates !== []) {
-            // One batched UPSERT keyed on email. Because every row here already
-            // matched an existing employee, this only ever UPDATEs — it never
-            // inserts a new employee.
-            Employee::upsert($updates, ['email'], self::UPDATABLE);
+        if ($records !== []) {
+            // One batched UPSERT keyed on email: rows whose email already exists
+            // are UPDATEd (only the UPDATABLE columns), rows with a new email are
+            // INSERTed. Eloquent fills created_at/updated_at automatically.
+            Employee::upsert($records, ['email'], self::UPDATABLE);
+        }
+
+        // Advance the live progress counter by every row we saw in this chunk
+        // (processed = upserted + skipped), so the frontend bar reaches total.
+        if ($this->importId !== null) {
+            ImportProgress::advance($this->importId, $rows->count());
         }
 
         Log::info('EmployeesImport chunk processed', [
-            'updated' => count($updates),
+            'upserted' => count($records),
             'skipped' => $skipped,
         ]);
+    }
+
+    /**
+     * Mark the import processing/completed around the chunk jobs. Registered via
+     * closures (not $this) so they stay serializable for the queued import.
+     *
+     * @return array<class-string, callable>
+     */
+    public function registerEvents(): array
+    {
+        $importId = $this->importId;
+
+        if ($importId === null) {
+            return [];
+        }
+
+        return [
+            BeforeImport::class => fn () => ImportProgress::markProcessing($importId),
+            AfterImport::class => fn () => ImportProgress::markCompleted($importId),
+        ];
     }
 
     /**
